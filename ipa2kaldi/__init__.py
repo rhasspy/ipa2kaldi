@@ -19,6 +19,8 @@ _SILENCE_PHONES = ["SIL", "SPN", "NSN"]
 
 @dataclass
 class DatasetItem:
+    """Single item from a dataset"""
+
     id: str
     speaker: str
     text: str
@@ -27,6 +29,8 @@ class DatasetItem:
 
 @dataclass
 class Dataset:
+    """Entire dataset"""
+
     name: str
     path: Path
     speaker: typing.Optional[str] = None
@@ -129,7 +133,7 @@ def write_phones(
     optional_silence_path: Path = dict_dir / "optional_silence.txt"
     extra_questions_path: Path = dict_dir / "extra_questions.txt"
 
-    # TODO: Handle stress
+    # NOTE: Not handling stress yet
     # nonsilence_phones.txt
     with open(nonsilence_path, "w") as nonsilence_file:
         for phone in nonsilence_phones:
@@ -151,5 +155,5 @@ def write_phones(
         print(*silence_phones, file=extra_questions_file)
 
         # Non-silence phones next
-        # TODO: Keep stressed phones separate
+        # NOTE: Need to keep stressed phones separate
         print(*nonsilence_phones, file=extra_questions_file)

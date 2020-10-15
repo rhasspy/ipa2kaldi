@@ -1,6 +1,7 @@
 """Command-line interface for ipa2kaldi"""
 import argparse
 import logging
+import shutil
 import typing
 from collections import Counter
 from pathlib import Path
@@ -15,8 +16,6 @@ from ipa2kaldi import (
     write_phones,
     write_test_train,
 )
-
-
 from ipa2kaldi.utils import ensure_symlink_dir, maybe_gzip_open, read_arpa
 
 _LOGGER = logging.getLogger("ipa2kaldi")
@@ -41,6 +40,12 @@ def main():
     args.recipe_dir = Path(args.recipe_dir)
     args.lexicon = [Path(l) for l in args.lexicon]
 
+    if args.arpa_lm:
+        args.arpa_lm = Path(args.arpa_lm)
+
+    # Create recipe directory
+    args.recipe_dir.mkdir(parents=True, exist_ok=True)
+
     kaldi_dir = args.recipe_dir.parent.parent.parent
     _LOGGER.info("Assuming Kaldi is located at %s", kaldi_dir)
 
@@ -55,9 +60,6 @@ def main():
     # utils -> egs/wsj/s5/utils
     ensure_symlink_dir(steps_dir, args.recipe_dir / "steps")
     ensure_symlink_dir(utils_dir, args.recipe_dir / "utils")
-
-    # Create recipe directory
-    args.recipe_dir.mkdir(parents=True, exist_ok=True)
 
     # Load language
     gruut_lang = gruut.Language.load(args.language)
@@ -99,6 +101,8 @@ def main():
 
         # Load transcriptions
         metadata_path = dataset.path / "metadata.csv"
+        num_items_loaded = 0
+
         with open(metadata_path, "r") as metadata_file:
             for line in metadata_file:
                 line = line.strip()
@@ -112,6 +116,21 @@ def main():
                 else:
                     # Speaker is in metadata
                     item_id, item_speaker, item_text = line.split("|", maxsplit=2)
+
+                if not item_id:
+                    missing_files[dataset.name] += 1
+                    _LOGGER.warning("Missing id for %s", line)
+                    continue
+
+                if not item_speaker:
+                    missing_files[dataset.name] += 1
+                    _LOGGER.warning("Missing speaker for %s", line)
+                    continue
+
+                if not item_text:
+                    missing_files[dataset.name] += 1
+                    _LOGGER.warning("Missing text for %s", line)
+                    continue
 
                 audio_path = dataset.path / (item_id + ".wav")
                 if not audio_path.is_file():
@@ -138,6 +157,15 @@ def main():
                 )
 
                 dataset.items[item.id] = item
+                num_items_loaded += 1
+
+        # ---------------------------------------------------------------------
+
+        _LOGGER.debug(
+            "Loaded %s item(s) from dataset %s", num_items_loaded, dataset_name
+        )
+
+    # -------------------------------------------------------------------------
 
     for dataset_name, num_missing in missing_files.most_common():
         total_items = num_missing + len(datasets[dataset_name].items)
@@ -208,6 +236,13 @@ def main():
 
     # Check for ARPA LM
     lm_path = args.recipe_dir / "lm" / "lm.arpa.gz"
+
+    if args.arpa_lm:
+        _LOGGER.debug("Copying ARPA language model (%s -> %s)", args.arpa_lm, lm_path)
+        with maybe_gzip_open(lm_path, "w") as dest_lm_file:
+            with maybe_gzip_open(args.arpa_lm, "r") as src_lm_file:
+                shutil.copyfileobj(src_lm_file, dest_lm_file)
+
     if lm_path.is_file():
         _LOGGER.debug("Checking if all words in the lexicon are in %s", lm_path)
         with maybe_gzip_open(lm_path, "r") as lm_file:
@@ -230,6 +265,7 @@ def main():
 
 
 def get_args():
+    """Parse command-line arguments"""
     parser = argparse.ArgumentParser(prog="ipa2kaldi")
     parser.add_argument("language", help="Language code (e.g., en-us)")
     parser.add_argument(
@@ -265,6 +301,10 @@ def get_args():
     )
     parser.add_argument(
         "--silence-phone", default="SIL", help="Silence phone (default: SIL)"
+    )
+    parser.add_argument(
+        "--arpa-lm",
+        help="Path to ARPA language model (copied to <RECIPE>/lm/lm.arpa.gz)",
     )
     parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to console"

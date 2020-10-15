@@ -27,6 +27,8 @@ def maybe_gzip_open(
 
         return gzip.open(path_or_str, gzip_mode)
 
+    return open(path_or_str, mode)
+
 
 def ensure_symlink_dir(target_path: Path, link_path: Path):
     """Ensures that a directory symlink exists and is not broken."""
