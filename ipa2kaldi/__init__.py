@@ -6,6 +6,8 @@ import typing
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from gruut_ipa import IPA
+
 _LOGGER = logging.getLogger("ipa2kaldi")
 
 # Default silence phones.
@@ -119,6 +121,7 @@ def write_phones(
     nonsilence_phones: typing.List[str],
     silence_phones: typing.Optional[typing.List[str]] = None,
     optional_silence_phones: typing.Optional[typing.List[str]] = None,
+    add_stress: bool = False,
 ):
     """Write phone text files for Kaldi recipe."""
     silence_phones = silence_phones or _SILENCE_PHONES
@@ -133,11 +136,19 @@ def write_phones(
     optional_silence_path: Path = dict_dir / "optional_silence.txt"
     extra_questions_path: Path = dict_dir / "extra_questions.txt"
 
-    # NOTE: Not handling stress yet
     # nonsilence_phones.txt
     with open(nonsilence_path, "w") as nonsilence_file:
         for phone in nonsilence_phones:
-            print(phone, file=nonsilence_file)
+            if add_stress:
+                # p ˈp ˌp
+                print(
+                    phone,
+                    f"{IPA.STRESS_PRIMARY.value}{phone}",
+                    f"{IPA.STRESS_SECONDARY.value}{phone}",
+                    file=nonsilence_file,
+                )
+            else:
+                print(phone, file=nonsilence_file)
 
     # silence_phones.txt
     with open(silence_path, "w") as silence_file:
@@ -155,5 +166,17 @@ def write_phones(
         print(*silence_phones, file=extra_questions_file)
 
         # Non-silence phones next
-        # NOTE: Need to keep stressed phones separate
         print(*nonsilence_phones, file=extra_questions_file)
+
+        if add_stress:
+            # Primary stressed phones
+            print(
+                *[f"{IPA.STRESS_PRIMARY.value}{p}" for p in nonsilence_phones],
+                file=extra_questions_file,
+            )
+
+            # Secondary stressed phones
+            print(
+                *[f"{IPA.STRESS_SECONDARY.value}{p}" for p in nonsilence_phones],
+                file=extra_questions_file,
+            )

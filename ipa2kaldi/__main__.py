@@ -152,8 +152,13 @@ def main():
                             if word not in lexicon:
                                 missing_words.add(word)
 
+                clean_item_text = " ".join(clean_words)
+
                 item = DatasetItem(
-                    id=item_id, speaker=item_speaker, text=item_text, path=audio_path
+                    id=item_id,
+                    speaker=item_speaker,
+                    text=clean_item_text,
+                    path=audio_path,
                 )
 
                 dataset.items[item.id] = item
@@ -229,7 +234,7 @@ def main():
 
     # Phones
     nonsilence_phones = [p.text for p in gruut_lang.phonemes]
-    write_phones(args.recipe_dir, nonsilence_phones)
+    write_phones(args.recipe_dir, nonsilence_phones, add_stress=gruut_lang.keep_stress)
 
     # Scripts
     copy_recipe_files(args.recipe_dir, _DIR / "recipe")
