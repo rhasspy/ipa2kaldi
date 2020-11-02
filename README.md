@@ -4,6 +4,8 @@ Creates a [Kaldi nnet3 recipe](https://kaldi-asr.org/doc/dnn3.html) from transcr
 
 This project is inspired by [Zamia Speech](https://github.com/gooofy/zamia-speech), and is intended to supply acoustic models built from [open speech corpora](https://github.com/JRMeyer/open-speech-corpora) to the [Rhasspy project](https://github.com/rhasspy/rhasspy) for [many human languages](https://github.com/synesthesiam/voice2json-profiles).
 
+Check out the [pre-trained models](#pre-trained-models).
+
 ## Dependencies
 
 * Python 3.7 or higher
@@ -211,3 +213,18 @@ $ make -j8
 ```
 
 See the [getting started guide](https://kaldi-asr.org/doc/tutorial_setup.html) if you have problems.
+
+## Pre-Trained Models
+
+The following `nnet3` models have been trained with `ipa2kaldi` using public speech data:
+
+* Czech
+   * [cz_kaldi-rhasspy](https://github.com/rhasspy/cz_kaldi-rhasspy)
+* French
+   * [fr_kaldi-rhasspy](https://github.com/rhasspy/fr_kaldi-rhasspy)
+* German
+   * [de_kaldi-rhasspy](https://github.com/rhasspy/de_kaldi-rhasspy)
+* Italian
+   * [it_kaldi-rhasspy](https://github.com/rhasspy/it_kaldi-rhasspy)
+* Spanish
+   * [es_kaldi-rhasspy](https://github.com/rhasspy/es_kaldi-rhasspy)
