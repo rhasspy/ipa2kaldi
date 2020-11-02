@@ -219,11 +219,9 @@ See the [getting started guide](https://kaldi-asr.org/doc/tutorial_setup.html) i
 The following `nnet3` models have been trained with `ipa2kaldi` using public speech data:
 
 * Czech
-   * [cz_kaldi-rhasspy](https://github.com/rhasspy/cz_kaldi-rhasspy)
+   * [cs_kaldi-rhasspy](https://github.com/rhasspy/cs_kaldi-rhasspy)
 * French
    * [fr_kaldi-rhasspy](https://github.com/rhasspy/fr_kaldi-rhasspy)
-* German
-   * [de_kaldi-rhasspy](https://github.com/rhasspy/de_kaldi-rhasspy)
 * Italian
    * [it_kaldi-rhasspy](https://github.com/rhasspy/it_kaldi-rhasspy)
 * Spanish
