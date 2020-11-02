@@ -1,6 +1,7 @@
 """Command-line interface for ipa2kaldi"""
 import argparse
 import logging
+import re
 import shutil
 import typing
 from collections import Counter
@@ -117,6 +118,9 @@ def main():
                     # Speaker is in metadata
                     item_id, item_speaker, item_text = line.split("|", maxsplit=2)
 
+                # Speaker cannot contain whitespace
+                item_speaker = re.sub(r"\s+", "_", item_speaker)
+
                 if not item_id:
                     missing_files[dataset.name] += 1
                     _LOGGER.warning("Missing id for %s", line)
@@ -194,6 +198,7 @@ def main():
                 missing_words, nbest=1, model_path=gruut_lang.phonemizer.g2p_model_path
             ):
                 # Assume one guess
+                word_pron = [p.text for p in gruut_lang.phonemes.split("".join(word_pron))]
                 lexicon[word] = [word_pron]
                 lexicon_words.add(word)
                 print(word, " ".join(word_pron), file=missing_words_file)
