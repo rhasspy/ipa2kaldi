@@ -226,3 +226,5 @@ The following `nnet3` models have been trained with `ipa2kaldi` using public spe
    * [it_kaldi-rhasspy](https://github.com/rhasspy/it_kaldi-rhasspy)
 * Spanish
    * [es_kaldi-rhasspy](https://github.com/rhasspy/es_kaldi-rhasspy)
+
+These models are intended to be used with [rhasspy-asr-kaldi](https://github.com/rhasspy/rhasspy-asr-kaldi) from the [Rhasspy voice assistant](https://github./rhasspy/rhasspy).
