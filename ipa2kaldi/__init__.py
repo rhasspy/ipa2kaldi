@@ -80,7 +80,7 @@ def write_test_train(recipe_dir: Path, datasets: typing.Iterable[Dataset]):
     num_train_ids = len(utterances) - num_test_ids
 
     # Split data into test/train sets
-    test_ids = set(random.sample(utterances.keys(), num_train_ids))
+    test_ids = set(random.sample(utterances.keys(), num_test_ids))
     train_ids = utterances.keys() - test_ids
 
     # Write wav.scp, text, utt2spk files for each set
