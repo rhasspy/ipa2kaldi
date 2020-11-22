@@ -4,7 +4,7 @@ set -e
 # -----------------------------------------------------------------------------
 # Converts a css10 dataset to Rhasspy's ipa2kaldi format.
 #
-# Put this script in next to the transcript.txt.
+# Put this script next to the transcript.txt.
 # Converts WAV files to 16-bit 16Khz mono.
 # -----------------------------------------------------------------------------
 
@@ -37,12 +37,13 @@ trap cleanup EXIT
 
 cut -d'|' -f2 "${metadata_csv}" | sort | uniq | \
     while read -r speaker; do
-        find "${speaker}/" -type f -name '*.wav'
+        find "${this_dir}" -type f -name '*.wav'
     done >> "${temp_file}"
 
 # -----------------------------------------------------------------------------
 
 echo 'Converting WAV files...'
-parallel sox "{}" -r 16000 -e signed-integer -b 16 -c 1 -t wav "${this_dir}/{/}" < "${temp_file}"
+sort "${temp_file}" | uniq | \
+    parallel sox "{}" -r 16000 -e signed-integer -b 16 -c 1 -t wav "${this_dir}/{/}"
 
 echo 'Done'

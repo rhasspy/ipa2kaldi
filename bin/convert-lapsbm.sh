@@ -2,7 +2,7 @@
 set -e
 
 # -----------------------------------------------------------------------------
-# Converts the MSPKA dataset to Rhasspy's ipa2kaldi format.
+# Converts the LapsBM dataset to Rhasspy's ipa2kaldi format.
 #
 # Put this script in the same directory as all of the speaker directories and
 # execute it.
@@ -17,22 +17,19 @@ echo 'Collecting metadata...'
 metadata_csv="${this_dir}/metadata.csv"
 truncate -s 0 "${metadata_csv}"
 
-find "${this_dir}" -type f -name 'list_sentences' | \
-    while read -r fname; do
-        fdir="$(dirname "${fname}")"
-        IFS='_' read -ra speaker_version <<< "$(basename ${fdir})"
-        speaker="${speaker_version[0]}"
-        version="${speaker_version[1]}"
+find "${this_dir}" -maxdepth 1 -mindepth 1 -type d | \
+    while read -r dpath; do
+        dname="$(basename "${dpath}")"
+        speaker="$(echo "${dname}" | sed -e 's/^[^-]\+-//')"
 
-        wav_dir="${fdir}/wav_${version}"
-        num_lines="$(wc -l < ${fname})"
+        find "${dpath}" -type f -name '*.wav' | \
+            while read -r wavpath; do
+                clip_id="$(basename "${wavpath}" .wav)"
+                text="$(cat "${dpath}/${clip_id}.txt")"
 
-        # clip_id | speaker | text
-        paste -d'|' \
-              <(cut -d')' -f1 "${fname}" | xargs -n1 printf '%s_%s\n' "${speaker}") \
-              <(yes "${speaker}" | head -n "${num_lines}") \
-              <(cut -d')' -f2- "${fname}" | sed -e 's/^ //') \
-              >> "${metadata_csv}"
+                # clip_id | speaker | text
+                printf '%s|%s|%s\n' "${clip_id}" "${speaker}" "${text}"
+            done >> "${metadata_csv}"
     done
 
 # Convert WAV files

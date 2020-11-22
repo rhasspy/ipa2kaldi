@@ -198,7 +198,9 @@ def main():
                 missing_words, nbest=1, model_path=gruut_lang.phonemizer.g2p_model_path
             ):
                 # Assume one guess
-                word_pron = [p.text for p in gruut_lang.phonemes.split("".join(word_pron))]
+                word_pron = [
+                    p.text for p in gruut_lang.phonemes.split("".join(word_pron))
+                ]
                 lexicon[word] = [word_pron]
                 lexicon_words.add(word)
                 print(word, " ".join(word_pron), file=missing_words_file)
@@ -238,7 +240,16 @@ def main():
     write_test_train(args.recipe_dir, datasets.values())
 
     # Phones
-    nonsilence_phones = [p.text for p in gruut_lang.phonemes]
+    nonsilence_phones = []
+    for phoneme in gruut_lang.phonemes:
+        # No tones
+        nonsilence_phones.append(phoneme.text)
+
+        if phoneme.tones:
+            # Separate phoneme for each tone
+            for tone in phoneme.tones:
+                nonsilence_phones.append(phoneme.text + tone)
+
     write_phones(args.recipe_dir, nonsilence_phones, add_stress=gruut_lang.keep_stress)
 
     # Scripts
