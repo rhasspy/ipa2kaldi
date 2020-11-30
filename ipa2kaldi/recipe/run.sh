@@ -187,7 +187,7 @@ ali_dir=exp/${gmm}_ali_${train_set}_sp_comb
 tree_dir=exp/nnet3${nnet3_affix}/tree_sp
 lang=data/lang_chain
 lat_dir=exp/nnet3${nnet3_affix}/${gmm}_${train_set}_sp_comb_lats
-dir=exp/nnet3${nnet3_affix}/tdnn_sp
+dir=exp/nnet3${nnet3_affix}/tdnn_250
 train_data_dir=data/${train_set}_sp_hires_comb
 lores_train_data_dir=data/${train_set}_sp_comb
 train_ivector_dir=exp/nnet3${nnet3_affix}/ivectors_${train_set}_sp_hires_comb
@@ -266,8 +266,6 @@ fi
 #
 
 if [ $stage -le 11 ]; then
-
-    dir=exp/nnet3${nnet3_affix}/tdnn_250
 
     mkdir -p $dir
 
@@ -352,17 +350,18 @@ EOF
     echo
 
     utils/mkgraph.sh --self-loop-scale 1.0 data/lang_test $dir $dir/graph
+fi
 
-    # echo
-    # echo decode
-    # echo
+if [ $stage -le 12 ]; then
+    echo
+    echo decode
+    echo
 
-    # steps/nnet3/decode.sh --num-threads 1 --nj $nDecodeJobs --cmd "$decode_cmd" \
-    #                       --acwt 1.0 --post-decode-acwt 10.0 \
-    #                       --online-ivector-dir exp/nnet3${nnet3_affix}/ivectors_test_hires \
-    #                       --scoring-opts "--min-lmwt 5 " \
-    #                       $dir/graph data/test_hires $dir/decode_test || exit 1;
+    steps/nnet3/decode.sh --num-threads 1 --nj $nDecodeJobs --cmd "$decode_cmd" \
+                          --acwt 1.0 --post-decode-acwt 10.0 \
+                          --online-ivector-dir exp/nnet3${nnet3_affix}/ivectors_test_hires \
+                          --scoring-opts "--min-lmwt 5 " \
+                          $dir/graph data/test_hires $dir/decode_test || exit 1;
 
-    # grep WER $dir/decode_test/scoring_kaldi/best_wer >>RESULTS.txt
-
+    grep WER $dir/decode_test/scoring_kaldi/best_wer >>RESULTS.txt
 fi
