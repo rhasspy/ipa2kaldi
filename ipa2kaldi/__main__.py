@@ -199,7 +199,10 @@ def main():
             ):
                 # Assume one guess
                 word_pron = [
-                    p.text for p in gruut_lang.phonemes.split("".join(word_pron))
+                    p.text for p in gruut_lang.phonemes.split(
+                        "".join(word_pron),
+                        keep_stress=gruut_lang.keep_stress
+                    )
                 ]
                 lexicon[word] = [word_pron]
                 lexicon_words.add(word)

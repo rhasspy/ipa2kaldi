@@ -1,6 +1,7 @@
 """Methods and classes for ipa2kaldi"""
 import logging
 import random
+import re
 import shutil
 import typing
 from dataclasses import dataclass, field
@@ -69,12 +70,12 @@ def write_test_train(recipe_dir: Path, datasets: typing.Iterable[Dataset]):
             utterance_id = f"{item.speaker}-{dataset.name}-{item.id}"
 
             # Remove spaces
-            utterance_id = utterance_id.replace(" ", "_")
+            utterance_id = re.sub(r"\s", "_", utterance_id)
 
             utterances[utterance_id] = item
 
     # 10% test
-    num_test_ids = int(len(utterances) / 10)
+    num_test_ids = int(len(utterances) / 20)
 
     # 90% train
     num_train_ids = len(utterances) - num_test_ids
