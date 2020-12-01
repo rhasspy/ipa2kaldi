@@ -78,7 +78,7 @@ def write_test_train(recipe_dir: Path, datasets: typing.Iterable[Dataset]):
     num_test_ids = int(len(utterances) / 20)
 
     # 90% train
-    num_train_ids = len(utterances) - num_test_ids
+    # num_train_ids = len(utterances) - num_test_ids
 
     # Split data into test/train sets
     test_ids = set(random.sample(utterances.keys(), num_test_ids))
