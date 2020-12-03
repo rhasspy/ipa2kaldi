@@ -194,8 +194,8 @@ def main():
         missing_words_path = args.recipe_dir / "missing_words.txt"
 
         with open(missing_words_path, "w") as missing_words_file:
-            for word, word_pron in phonetisaurus.predict(
-                missing_words, nbest=1, model_path=gruut_lang.phonemizer.g2p_model_path
+            for word, word_pron in gruut_lang.phonemizer.predict(
+                missing_words, nbest=1
             ):
                 # Assume one guess
                 word_pron = [
