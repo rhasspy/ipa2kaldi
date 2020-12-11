@@ -105,18 +105,27 @@ def main():
         num_items_loaded = 0
 
         with open(metadata_path, "r") as metadata_file:
-            for line in metadata_file:
+            for line_index, line in enumerate(metadata_file):
                 line = line.strip()
                 if not line:
                     continue
 
-                if dataset.speaker:
-                    # Speaker was provided
-                    item_id, item_text = line.split("|", maxsplit=1)
-                    item_speaker = dataset.speaker
-                else:
-                    # Speaker is in metadata
-                    item_id, item_speaker, item_text = line.split("|", maxsplit=2)
+                try:
+                    if dataset.speaker:
+                        # Speaker was provided
+                        item_id, item_text = line.split("|", maxsplit=1)
+                        item_speaker = dataset.speaker
+                    else:
+                        # Speaker is in metadata
+                        item_id, item_speaker, item_text = line.split("|", maxsplit=2)
+                except ValueError as e:
+                    _LOGGER.exception(
+                        "Error on line %s of %s: %s",
+                        line_index + 1,
+                        metadata_path,
+                        line,
+                    )
+                    raise e
 
                 # Speaker cannot contain whitespace
                 item_speaker = re.sub(r"\s+", "_", item_speaker)
