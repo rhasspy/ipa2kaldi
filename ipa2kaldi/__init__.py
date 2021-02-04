@@ -24,20 +24,29 @@ _SILENCE_PHONES = ["SIL", "SPN", "NSN"]
 class DatasetItem:
     """Single item from a dataset"""
 
+    index: int
     id: str
+    dataset_index: int
     speaker: str
+    speaker_index: int
     text: str
     path: Path
+
+    @property
+    def dataset_speaker(self) -> str:
+        return f"d{self.dataset_index}-s{self.speaker_index}"
 
 
 @dataclass
 class Dataset:
     """Entire dataset"""
 
+    index: int
     name: str
     path: Path
     speaker: typing.Optional[str] = None
     items: typing.Dict[str, DatasetItem] = field(default_factory=dict)
+    speaker_indexes: typing.Dict[str, int] = field(default_factory=dict)
 
 
 # -----------------------------------------------------------------------------
@@ -67,14 +76,10 @@ def write_test_train(recipe_dir: Path, datasets: typing.Iterable[Dataset]):
     utterances: typing.Dict[str, DatasetItem] = {}
     for dataset in datasets:
         for item in dataset.items.values():
-            utterance_id = f"{item.speaker}-{dataset.name}-{item.id}"
-
-            # Remove spaces
-            utterance_id = re.sub(r"\s", "_", utterance_id)
-
+            utterance_id = f"{item.dataset_speaker}-i{item.index}"
             utterances[utterance_id] = item
 
-    # 10% test
+    # 5% test
     num_test_ids = int(len(utterances) / 20)
 
     # 90% train
@@ -91,7 +96,7 @@ def write_test_train(recipe_dir: Path, datasets: typing.Iterable[Dataset]):
 
         # Files need to be in sorted order
         utt_speaker = sorted(
-            [(utt_id, utterances[utt_id].speaker) for utt_id in utt_ids]
+            [(utt_id, utterances[utt_id].dataset_speaker) for utt_id in utt_ids]
         )
 
         # wav.scp

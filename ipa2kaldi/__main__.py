@@ -85,7 +85,7 @@ def main():
     missing_words: typing.Set[str] = set()
     missing_files = Counter()
 
-    for dataset_parts in args.dataset:
+    for dataset_index, dataset_parts in enumerate(args.dataset):
         dataset_path = Path(dataset_parts[0])
         dataset_name = dataset_path.name
         dataset_speaker = None
@@ -97,7 +97,12 @@ def main():
             dataset_speaker = dataset_parts[2]
 
         _LOGGER.debug("Loading dataset from %s", dataset_path)
-        dataset = Dataset(name=dataset_name, path=dataset_path, speaker=dataset_speaker)
+        dataset = Dataset(
+            index=dataset_index,
+            name=dataset_name,
+            path=dataset_path,
+            speaker=dataset_speaker,
+        )
         datasets[dataset.name] = dataset
 
         # Load transcriptions
@@ -127,8 +132,9 @@ def main():
                     )
                     raise e
 
-                # Speaker cannot contain whitespace
-                item_speaker = re.sub(r"\s+", "_", item_speaker)
+                item_id = item_id.strip()
+                item_speaker = item_speaker.strip()
+                item_text = item_text.strip()
 
                 if not item_id:
                     missing_files[dataset.name] += 1
@@ -167,9 +173,18 @@ def main():
 
                 clean_item_text = " ".join(clean_words)
 
+                # Unique index of speaker
+                speaker_index = dataset.speaker_indexes.get(item_speaker)
+                if speaker_index is None:
+                    speaker_index = len(dataset.speaker_indexes)
+                    dataset.speaker_indexes[item_speaker] = speaker_index
+
                 item = DatasetItem(
+                    index=line_index,
                     id=item_id,
+                    dataset_index=dataset_index,
                     speaker=item_speaker,
+                    speaker_index=speaker_index,
                     text=clean_item_text,
                     path=audio_path,
                 )
