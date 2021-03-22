@@ -1,13 +1,11 @@
 """Command-line interface for ipa2kaldi"""
 import argparse
+import importlib
 import logging
-import re
 import shutil
 import typing
 from collections import Counter
 from pathlib import Path
-
-import phonetisaurus
 
 import gruut
 from ipa2kaldi import (
@@ -88,109 +86,68 @@ def main():
     for dataset_index, dataset_parts in enumerate(args.dataset):
         dataset_path = Path(dataset_parts[0])
         dataset_name = dataset_path.name
-        dataset_speaker = None
+        dataset_type = "default"
 
         if len(dataset_parts) > 1:
             dataset_name = dataset_parts[1]
 
-        if len(dataset_parts) > 2:
-            dataset_speaker = dataset_parts[2]
+            # <type>:<name>
+            name_parts = dataset_name.split(":", maxsplit=1)
+            if len(name_parts) == 2:
+                dataset_type, dataset_name = name_parts
 
-        _LOGGER.debug("Loading dataset from %s", dataset_path)
-        dataset = Dataset(
-            index=dataset_index,
-            name=dataset_name,
-            path=dataset_path,
-            speaker=dataset_speaker,
+        dataset_module = importlib.import_module(
+            f".dataset.{dataset_type}", __package__
         )
+
+        _LOGGER.debug("Loading dataset from %s (type=%s)", dataset_path, dataset_type)
+        dataset = Dataset(index=dataset_index, name=dataset_name, path=dataset_path)
         datasets[dataset.name] = dataset
 
         # Load transcriptions
-        metadata_path = dataset.path / "metadata.csv"
         num_items_loaded = 0
 
-        with open(metadata_path, "r") as metadata_file:
-            for line_index, line in enumerate(metadata_file):
-                line = line.strip()
-                if not line:
-                    continue
-
-                try:
-                    if dataset.speaker:
-                        # Speaker was provided
-                        item_id, item_text = line.split("|", maxsplit=1)
-                        item_speaker = dataset.speaker
-                    else:
-                        # Speaker is in metadata
-                        item_id, item_speaker, item_text = line.split("|", maxsplit=2)
-                except ValueError as e:
-                    _LOGGER.exception(
-                        "Error on line %s of %s: %s",
-                        line_index + 1,
-                        metadata_path,
-                        line,
-                    )
-                    raise e
-
-                item_id = item_id.strip()
-                item_speaker = item_speaker.strip()
-                item_text = item_text.strip()
-
-                if not item_id:
-                    missing_files[dataset.name] += 1
-                    _LOGGER.warning("Missing id for %s", line)
-                    continue
-
-                if not item_speaker:
-                    missing_files[dataset.name] += 1
-                    _LOGGER.warning("Missing speaker for %s", line)
-                    continue
-
-                if not item_text:
-                    missing_files[dataset.name] += 1
-                    _LOGGER.warning("Missing text for %s", line)
-                    continue
-
-                audio_path = dataset.path / (item_id + ".wav")
-                if not audio_path.is_file():
-                    missing_files[dataset.name] += 1
-                    _LOGGER.warning(
-                        "Missing audio file for id %s: %s", item_id, audio_path
-                    )
-                    continue
-
-                clean_words = []
-
-                # Tokenize and find missing words
-                for sentence in gruut_lang.tokenizer.tokenize(item_text):
-                    for word in sentence.clean_words:
-                        if gruut_lang.tokenizer.is_word(word):
-                            clean_words.append(word)
-                            lexicon_words.add(word)
-
-                            if word not in lexicon:
-                                missing_words.add(word)
-
-                clean_item_text = " ".join(clean_words)
-
-                # Unique index of speaker
-                speaker_index = dataset.speaker_indexes.get(item_speaker)
-                if speaker_index is None:
-                    speaker_index = len(dataset.speaker_indexes)
-                    dataset.speaker_indexes[item_speaker] = speaker_index
-
-                item = DatasetItem(
-                    index=line_index,
-                    id=item_id,
-                    dataset_index=dataset_index,
-                    speaker=item_speaker,
-                    speaker_index=speaker_index,
-                    text=clean_item_text,
-                    path=audio_path,
+        for item_index, (item_speaker, item_text, audio_path) in enumerate(
+            dataset_module.get_metadata(dataset_path)
+        ):
+            if not audio_path.is_file():
+                missing_files[dataset.name] += 1
+                _LOGGER.warning(
+                    "Missing audio file for item %s: %s", item_index, audio_path
                 )
+                continue
 
-                dataset.items[item.id] = item
-                num_items_loaded += 1
+            clean_words = []
+
+            # Tokenize and find missing words
+            for sentence in gruut_lang.tokenizer.tokenize(item_text):
+                for word in sentence.clean_words:
+                    if gruut_lang.tokenizer.is_word(word):
+                        clean_words.append(word)
+                        lexicon_words.add(word)
+
+                        if word not in lexicon:
+                            missing_words.add(word)
+
+            clean_item_text = " ".join(clean_words)
+
+            # Unique index of speaker
+            speaker_index = dataset.speaker_indexes.get(item_speaker)
+            if speaker_index is None:
+                speaker_index = len(dataset.speaker_indexes)
+                dataset.speaker_indexes[item_speaker] = speaker_index
+
+            item = DatasetItem(
+                index=item_index,
+                dataset_index=dataset_index,
+                speaker=item_speaker,
+                speaker_index=speaker_index,
+                text=clean_item_text,
+                path=audio_path,
+            )
+
+            dataset.items.append(item)
+            num_items_loaded += 1
 
         # ---------------------------------------------------------------------
 

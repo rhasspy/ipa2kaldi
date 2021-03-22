@@ -1,7 +1,6 @@
 """Methods and classes for ipa2kaldi"""
 import logging
 import random
-import re
 import shutil
 import typing
 from dataclasses import dataclass, field
@@ -25,7 +24,6 @@ class DatasetItem:
     """Single item from a dataset"""
 
     index: int
-    id: str
     dataset_index: int
     speaker: str
     speaker_index: int
@@ -34,6 +32,7 @@ class DatasetItem:
 
     @property
     def dataset_speaker(self) -> str:
+        """Get globally-unique id for speaker"""
         return f"d{self.dataset_index}-s{self.speaker_index}"
 
 
@@ -45,7 +44,7 @@ class Dataset:
     name: str
     path: Path
     speaker: typing.Optional[str] = None
-    items: typing.Dict[str, DatasetItem] = field(default_factory=dict)
+    items: typing.List[DatasetItem] = field(default_factory=list)
     speaker_indexes: typing.Dict[str, int] = field(default_factory=dict)
 
 
@@ -71,11 +70,13 @@ def copy_recipe_files(recipe_dir: Path, source_dir: Path):
 # -----------------------------------------------------------------------------
 
 
-def write_test_train(recipe_dir: Path, datasets: typing.Iterable[Dataset]):
+def write_test_train(
+    recipe_dir: Path, datasets: typing.Iterable[Dataset], use_ffmpeg: bool = True
+):
     """Write wav.scp, text, and utt2spk files for test/train data splits."""
     utterances: typing.Dict[str, DatasetItem] = {}
     for dataset in datasets:
-        for item in dataset.items.values():
+        for item in dataset.items:
             utterance_id = f"{item.dataset_speaker}-i{item.index}"
             utterances[utterance_id] = item
 
@@ -110,7 +111,29 @@ def write_test_train(recipe_dir: Path, datasets: typing.Iterable[Dataset]):
 
                         # wav.scp
                         file_path = utt.path.absolute()
-                        print(utt_id, str(file_path), file=wav_scp)
+                        if use_ffmpeg:
+                            # Convert file to a 16-bit 16khz mono WAV
+                            print(
+                                utt_id,
+                                "ffmpeg",
+                                "-y",
+                                "-i",
+                                str(file_path),
+                                "-ar",
+                                "16000",
+                                "-ac",
+                                "1",
+                                "-acodec",
+                                "pcm_s16le",
+                                "-f",
+                                "wav",
+                                "-",
+                                "|",
+                                file=wav_scp,
+                            )
+                        else:
+                            # File must already be a 16-bit 16khz mono WAV
+                            print(utt_id, str(file_path), file=wav_scp)
 
                         # text
                         print(utt_id, utt.text.strip(), file=text_file)

@@ -8,7 +8,7 @@ def main():
     sample_rate = 16000
     sample_width = 2
     num_channels = 2
-    text = ""
+    # text = ""
 
     input_path = sys.argv[1]
     output_path = sys.argv[2]
@@ -22,9 +22,9 @@ def main():
 
         try:
             field_name, _, field_value = line.split(maxsplit=2)
-            if field_name == "utterance_id":
-                text = field_value
-            elif field_name == "sample_coding":
+            # if field_name == "utterance_id":
+            #     text = field_value
+            if field_name == "sample_coding":
                 assert field_value == "pcm", field_value
             elif field_name == "sample_byte_format":
                 assert field_value == "01", field_value
