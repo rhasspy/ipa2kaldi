@@ -10,7 +10,7 @@ if [[ -d "${venv}" ]]; then
     source "${venv}/bin/activate"
 fi
 
-python_files=("${src_dir}/ipa2kaldi"/*.py)
+python_files=("${src_dir}"/**/*.py)
 
 # -----------------------------------------------------------------------------
 
