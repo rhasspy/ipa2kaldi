@@ -48,7 +48,7 @@ def get_metadata(dataset_dir: Path) -> typing.Iterable[typing.Tuple[str, str, Pa
             for text, wav_path in _load_metadata(book_dir):
                 speaker_id = "speaker_{utt_idx}"
                 yield speaker_id, text, wav_path
-                utt_id += 1
+                utt_idx += 1
 
 
 def _load_metadata(book_dir: Path) -> typing.Iterable[typing.Tuple[str, Path]]:
