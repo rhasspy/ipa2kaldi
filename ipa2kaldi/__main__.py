@@ -272,15 +272,18 @@ def main():
 def get_args():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(prog="ipa2kaldi")
-    parser.add_argument("language", help="Language code (e.g., en-us)")
+    parser.add_argument("--language", required=True, help="Language code (e.g., en-us)")
     parser.add_argument(
-        "recipe_dir", help="Path to Kaldi recipe dir (e.g., egs/rhasspy_en-us)"
+        "--recipe-dir",
+        required=True,
+        help="Path to Kaldi recipe dir (e.g., egs/rhasspy_en-us)",
     )
     parser.add_argument(
         "--dataset",
         required=True,
         action="append",
         nargs="+",
+        metavar=("path", "type:name"),
         help="Path to dataset directory with audio files and metadata.csv",
     )
     parser.add_argument(
