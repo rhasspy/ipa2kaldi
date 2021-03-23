@@ -1,7 +1,9 @@
 """
 Converts Mozilla Common Voice datasets
 """
+import argparse
 import csv
+import sys
 import typing
 from pathlib import Path
 
@@ -19,3 +21,18 @@ def get_metadata(dataset_dir: Path) -> typing.Iterable[typing.Tuple[str, str, Pa
             text = row[2].strip()
 
             yield speaker_id, text, mp3_path
+
+
+# -----------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(prog="m_ailabs.py")
+    parser.add_argument("dataset_dir", help="Path to directory with clips directory")
+    parser.add_argument("--delimiter", default="|", help="Output CSV deliminter")
+    args = parser.parse_args()
+
+    args.dataset_dir = Path(args.dataset_dir)
+
+    writer = csv.writer(sys.stdout, delimiter=args.delimiter)
+    for speaker_id, text, audio_path in get_metadata(args.dataset_dir):
+        writer.writerow((str(audio_path), speaker_id, text))
