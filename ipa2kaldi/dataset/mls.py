@@ -30,7 +30,7 @@ def get_metadata(dataset_dir: Path) -> typing.Iterable[typing.Tuple[str, str, Pa
 # -----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="m_ailabs.py")
+    parser = argparse.ArgumentParser(prog="mls.py")
     parser.add_argument(
         "dataset_dir", help="Path to directory with dev/test/train directories"
     )
