@@ -15,6 +15,9 @@ def get_metadata(dataset_dir: Path) -> typing.Iterable[typing.Tuple[str, str, Pa
 
     with open(validated_path, "r") as validate_file:
         reader = csv.reader(validate_file, delimiter="\t")
+        # Skip header
+        next(reader)
+
         for row in reader:
             speaker_id = row[0].strip()
             mp3_path = clips_dir / row[1].strip()
