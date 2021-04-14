@@ -61,7 +61,7 @@ def main():
     ensure_symlink_dir(utils_dir, args.recipe_dir / "utils")
 
     # Load language
-    gruut_lang = gruut.Language.load(args.language)
+    gruut_lang = gruut.Language.load(args.language, preload_lexicon=True)
     assert gruut_lang, f"Unsupported language: {args.language}"
     lexicon = gruut_lang.phonemizer.lexicon
 
