@@ -29,6 +29,8 @@ class DatasetItem:
     speaker_index: int
     text: str
     path: Path
+    start_ms: typing.Optional[int] = None
+    end_ms: typing.Optional[int] = None
 
     @property
     def dataset_speaker(self) -> str:
@@ -107,11 +109,24 @@ def write_test_train(
                 # utt2spk
                 with open(data_dir / "utt2spk", "w") as utt2spk:
                     for utt_id, speaker in utt_speaker:
-                        utt = utterances[utt_id]
+                        utt: DatasetItem = utterances[utt_id]
 
                         # wav.scp
                         file_path = utt.path.absolute()
                         if use_ffmpeg:
+                            seek_trim = []
+                            if utt.start_ms is not None:
+                                start_sec = utt.start_ms / 1000
+                                seek_trim.extend(["-ss", str(start_sec)])
+
+                            if utt.end_ms is not None:
+                                duration_ms = utt.end_ms - utt.start_ms
+                                if duration_ms > 0:
+                                    duration_sec = duration_ms / 1000
+                                    seek_trim.extend(["-t", str(duration_sec)])
+                                else:
+                                    _LOGGER.warning("Negative duration for %s", utt)
+
                             # Convert file to a 16-bit 16khz mono WAV
                             print(
                                 utt_id,
@@ -119,6 +134,7 @@ def write_test_train(
                                 "-y",
                                 "-i",
                                 str(file_path),
+                                *seek_trim,
                                 "-ar",
                                 "16000",
                                 "-ac",

@@ -108,7 +108,7 @@ def main():
         num_items_loaded = 0
         num_items_dropped = 0
 
-        for item_index, (item_speaker, item_text, audio_path) in enumerate(
+        for item_index, item_details in enumerate(
             dataset_module.get_metadata(dataset_path)
         ):
             if not audio_path.is_file():
@@ -117,6 +117,22 @@ def main():
                     "Missing audio file for item %s: %s", item_index, audio_path
                 )
                 continue
+
+            item_speaker, item_text, audio_path = (
+                item_details[0],
+                item_details[1],
+                item_details[2],
+            )
+
+            # start/end
+            item_start_ms: typing.Optional[int] = None
+            item_end_ms: typing.Optional[int] = None
+
+            if len(item_details) > 3:
+                item_start_ms = item_details[3]
+
+            if len(item_details) > 4:
+                item_end_ms = item_details[4]
 
             clean_words = []
 
@@ -161,6 +177,8 @@ def main():
                 speaker_index=speaker_index,
                 text=clean_item_text,
                 path=audio_path,
+                start_ms=item_start_ms,
+                end_ms=item_end_ms,
             )
 
             dataset.items.append(item)
