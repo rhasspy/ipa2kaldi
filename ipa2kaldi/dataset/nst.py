@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Converts lydfiler_16_1 dataset
 Audio: https://www.nb.no/sbfil/talegjenkjenning/16kHz_2020/dk_2020/lydfiler_16_1.tar.gz

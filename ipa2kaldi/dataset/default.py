@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Loads data from a metadata.csv file with WAV files in the same directory"""
 import csv
 import typing

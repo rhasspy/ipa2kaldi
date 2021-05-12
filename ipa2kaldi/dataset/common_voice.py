@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Converts Mozilla Common Voice datasets
 """
