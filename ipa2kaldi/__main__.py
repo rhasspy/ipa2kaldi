@@ -106,6 +106,7 @@ def main():
 
         # Load transcriptions
         num_items_loaded = 0
+        num_items_dropped = 0
 
         for item_index, (item_speaker, item_text, audio_path) in enumerate(
             dataset_module.get_metadata(dataset_path)
@@ -120,14 +121,30 @@ def main():
             clean_words = []
 
             # Tokenize and find missing words
+            drop_item = False
             for sentence in gruut_lang.tokenizer.tokenize(item_text):
+                if drop_item:
+                    break
+
                 for word in sentence.clean_words:
                     if gruut_lang.tokenizer.is_word(word):
                         clean_words.append(word)
                         lexicon_words.add(word)
 
                         if word not in lexicon:
+                            if args.drop_unknown:
+                                # Drop instead of guessing pronunications
+                                drop_item = True
+                                num_items_dropped += 1
+                                break
+
                             missing_words.add(word)
+
+            if drop_item:
+                _LOGGER.debug(
+                    "Dropped item %s due to unknown words (%s)", item_index, item_text
+                )
+                continue
 
             clean_item_text = " ".join(clean_words)
 
@@ -151,8 +168,11 @@ def main():
 
         # ---------------------------------------------------------------------
 
-        _LOGGER.debug(
-            "Loaded %s item(s) from dataset %s", num_items_loaded, dataset_name
+        _LOGGER.info(
+            "Loaded %s item(s) from dataset %s (dropped %s)",
+            num_items_loaded,
+            dataset_name,
+            num_items_dropped,
         )
 
     # -------------------------------------------------------------------------
@@ -172,9 +192,15 @@ def main():
             "Guessing pronunciations for %s missing word(s)", len(missing_words)
         )
 
+        # Write missing words to text file
         missing_words_path = args.recipe_dir / "missing_words.txt"
-
         with open(missing_words_path, "w") as missing_words_file:
+            for word in sorted(missing_words):
+                print(word, file=missing_words_file)
+
+        # Guess pronunciations
+        missing_words_dict_path = args.recipe_dir / "missing_words.dict"
+        with open(missing_words_dict_path, "w") as missing_words_dict_file:
             for word, word_pron in gruut_lang.phonemizer.predict(
                 missing_words, nbest=1
             ):
@@ -187,10 +213,12 @@ def main():
                 ]
                 lexicon[word] = [word_pron]
                 lexicon_words.add(word)
-                print(word, " ".join(word_pron), file=missing_words_file)
+                print(word, " ".join(word_pron.phonemes), file=missing_words_dict_file)
 
         _LOGGER.debug(
-            "Wrote missing words to %s. Add with --lexicon", missing_words_path
+            "Wrote missing words to %s and %s. Add with --lexicon",
+            missing_words_path,
+            missing_words_dict_path,
         )
 
     # -------------------------------------------------------------------------
@@ -212,7 +240,7 @@ def main():
 
         for word, word_prons in lexicon.items():
             for word_pron in word_prons:
-                print(word, *word_pron, file=lexicon_file)
+                print(word, *word_pron.phonemes, file=lexicon_file)
 
     # -------------------------------------------------------------------------
     # Write Kaldi recipe files
@@ -313,6 +341,11 @@ def get_args():
     parser.add_argument(
         "--arpa-lm",
         help="Path to ARPA language model (copied to <RECIPE>/lm/lm.arpa.gz)",
+    )
+    parser.add_argument(
+        "--drop-unknown",
+        action="store_true",
+        help="Drop utterances with unknown instead of guessing pronunciations",
     )
     parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to console"
