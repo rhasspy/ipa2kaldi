@@ -8,6 +8,7 @@ from collections import Counter
 from pathlib import Path
 
 import gruut
+from gruut.utils import WordPronunciation
 from ipa2kaldi import (
     Dataset,
     DatasetItem,
@@ -226,12 +227,14 @@ def main():
                 missing_words, nbest=1
             ):
                 # Assume one guess
-                word_pron = [
-                    p.text
-                    for p in gruut_lang.phonemes.split(
-                        "".join(word_pron), keep_stress=gruut_lang.keep_stress
-                    )
-                ]
+                word_pron = WordPronunciation(
+                    phonemes=[
+                        p.text
+                        for p in gruut_lang.phonemes.split(
+                            "".join(word_pron), keep_stress=gruut_lang.keep_stress
+                        )
+                    ]
+                )
                 lexicon[word] = [word_pron]
                 lexicon_words.add(word)
                 print(word, " ".join(word_pron.phonemes), file=missing_words_dict_file)

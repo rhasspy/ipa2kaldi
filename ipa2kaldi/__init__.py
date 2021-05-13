@@ -239,7 +239,8 @@ def write_test_train(
                                 seek_trim.extend(["-ss", str(start_sec)])
 
                             if utt.end_ms is not None:
-                                duration_ms = utt.end_ms - utt.start_ms
+                                start_ms = 0 if (utt.start_ms is None) else utt.start_ms
+                                duration_ms = utt.end_ms - start_ms
                                 if duration_ms > 0:
                                     duration_sec = duration_ms / 1000
                                     seek_trim.extend(["-t", str(duration_sec)])
@@ -331,7 +332,9 @@ def write_test_train(
                                 str(bg_offset),
                                 str(total_noise_sec),
                                 str(start_sec) if (start_sec is not None) else "''",
-                                str(duration_sec) if (duration_sec is not None) else "''",
+                                str(duration_sec)
+                                if (duration_sec is not None)
+                                else "''",
                                 str(fg_level),
                                 str(bg_level),
                                 str(reverb),

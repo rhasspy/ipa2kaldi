@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Extract WAV file from NST corpus"""
 import subprocess
 import sys
 

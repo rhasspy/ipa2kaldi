@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+"""Convert Kaldi pronunciations to JSON"""
 import json
 import sys
 
 
 def main():
+    """Main entry point"""
     utt_id = None
     prons = []
 

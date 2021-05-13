@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Extract audio from Spoken Wikipedia"""
 import csv
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -9,6 +10,7 @@ _DIR = Path(".").absolute()
 
 
 def main():
+    """Main entry point"""
     metadata_path = _DIR / "metadata.csv"
     with open(metadata_path, "w") as metadata_file:
         metadata_writer = csv.writer(metadata_file, delimiter="|")

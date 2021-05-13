@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Extract metadata from NST corpus"""
 import json
 import os
 import sys
