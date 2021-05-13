@@ -1,5 +1,6 @@
 """Utility methods for ipa2kaldi"""
 import gzip
+import subprocess
 import typing
 from pathlib import Path
 
@@ -71,3 +72,27 @@ def read_arpa(
                 continue
 
             yield word, prob
+
+
+# -----------------------------------------------------------------------------
+
+
+def get_duration(audio_path: typing.Union[str, Path], stream_num: int = 0) -> float:
+    """Get the duration of an audio file in seconds (requires ffmpeg/ffprobe)"""
+    duration_str = subprocess.check_output(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            f"a:{stream_num}",
+            "-show_entries",
+            "stream=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(audio_path),
+        ],
+        universal_newlines=True,
+    )
+
+    return float(duration_str)

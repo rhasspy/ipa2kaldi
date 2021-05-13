@@ -3,12 +3,18 @@ import logging
 import random
 import shutil
 import typing
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from gruut_ipa import IPA
 
+from .utils import get_duration
+
 _LOGGER = logging.getLogger("ipa2kaldi")
+
+_DIR = Path(__file__).parent
+_ADD_NOISE = (_DIR.parent / "bin" / "add_noise.sh").absolute()
 
 # Default silence phones.
 # SIL = actual silence
@@ -73,9 +79,114 @@ def copy_recipe_files(recipe_dir: Path, source_dir: Path):
 
 
 def write_test_train(
-    recipe_dir: Path, datasets: typing.Iterable[Dataset], use_ffmpeg: bool = True
+    recipe_dir: Path,
+    datasets: typing.Iterable[Dataset],
+    test_percentage: float = 5,
+    use_ffmpeg: bool = True,
+    noise_dir: typing.Optional[typing.Union[str, Path]] = None,
+    noise_background_name: str = "_background_",
+    noise_foreground_skip_prefix: str = "_",
+    noise_stride: int = 4,
 ):
     """Write wav.scp, text, and utt2spk files for test/train data splits."""
+
+    # path -> duration_sec
+    noise_backgrounds: typing.Dict[Path, float] = {}
+    noise_bg_paths: typing.List[Path] = []
+
+    # path -> (label, duration_sec)
+    noise_foregrounds: typing.Dict[Path, typing.Tuple[str, float]] = {}
+    noise_fg_paths: typing.List[Path] = []
+
+    if noise_dir is not None:
+        # Load details from noise data
+        noise_dir = Path(noise_dir)
+
+        # Load background
+        noise_bg_dir = noise_dir / noise_background_name
+        _LOGGER.debug("Loading noise background durations from %s", noise_bg_dir)
+
+        bg_durations_path = noise_bg_dir / "durations.txt"
+        if bg_durations_path.is_file():
+            # Load durations from cache
+            with open(bg_durations_path, "r") as bg_durations_file:
+                for line in bg_durations_file:
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    wav_name, duration_str = line.split("|")
+                    bg_wav_path = noise_bg_dir / wav_name
+
+                    noise_backgrounds[bg_wav_path] = float(duration_str)
+                    noise_bg_paths.append(bg_wav_path)
+        else:
+            noise_bg_paths = list(noise_bg_dir.rglob("*.wav"))
+
+            # Get durations in parallel
+            with ThreadPoolExecutor() as executor:
+                bg_wav_durations = executor.map(get_duration, noise_bg_paths)
+
+            noise_backgrounds.update(zip(noise_bg_paths, bg_wav_durations))
+
+        total_bg_seconds = sum(noise_backgrounds.values())
+
+        _LOGGER.debug(
+            "Found %s second(s) in %s background WAV file(s)",
+            total_bg_seconds,
+            len(noise_backgrounds),
+        )
+
+        # Load foreground
+        for noise_fg_dir in noise_dir.iterdir():
+            if (not noise_fg_dir.is_dir()) or (
+                noise_fg_dir.name.startswith(noise_foreground_skip_prefix)
+            ):
+                continue
+
+            _LOGGER.debug("Loading noise foreground durations from %s", noise_fg_dir)
+
+            # Directory name is a Kaldi word like SIL, NSN, SPN, etc.
+            fg_label = noise_fg_dir.name
+
+            fg_durations_path = noise_fg_dir / "durations.txt"
+            if fg_durations_path.is_file():
+                # Load durations from cache
+                with open(fg_durations_path, "r") as fg_durations_file:
+                    for line in fg_durations_file:
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        wav_name, duration_str = line.split("|")
+                        fg_wav_path = noise_fg_dir / wav_name
+
+                        noise_foregrounds[fg_wav_path] = (fg_label, float(duration_str))
+                        noise_fg_paths.append(fg_wav_path)
+            else:
+                # Get durations in parallel
+                fg_wav_paths = list(noise_fg_dir.rglob("*.wav"))
+                noise_fg_paths.extend(fg_wav_paths)
+
+                with ThreadPoolExecutor() as executor:
+                    fg_wav_durations = executor.map(get_duration, fg_wav_paths)
+
+                noise_foregrounds.update(
+                    zip(
+                        fg_wav_paths,
+                        ((fg_label, fg_duration) for fg_duration in fg_wav_durations),
+                    )
+                )
+
+        total_fg_seconds = sum(fg_sec for _, fg_sec in noise_foregrounds.values())
+        _LOGGER.debug(
+            "Found %s second(s) in %s foreground WAV file(s)",
+            total_fg_seconds,
+            len(noise_foregrounds),
+        )
+
+    # -------------------------------------------------------------------------
+
     utterances: typing.Dict[str, DatasetItem] = {}
     for dataset in datasets:
         for item in dataset.items:
@@ -83,7 +194,7 @@ def write_test_train(
             utterances[utterance_id] = item
 
     # 5% test
-    num_test_ids = int(len(utterances) / 20)
+    num_test_ids = int(len(utterances) / (100 / test_percentage))
 
     # 90% train
     # num_train_ids = len(utterances) - num_test_ids
@@ -91,6 +202,10 @@ def write_test_train(
     # Split data into test/train sets
     test_ids = set(random.sample(utterances.keys(), num_test_ids))
     train_ids = utterances.keys() - test_ids
+
+    _LOGGER.debug(
+        "Training item(s): %s, testing item(s): %s", len(train_ids), len(test_ids)
+    )
 
     # Write wav.scp, text, utt2spk files for each set
     for dir_name, utt_ids in [("test", test_ids), ("train", train_ids)]:
@@ -108,8 +223,12 @@ def write_test_train(
             with open(data_dir / "text", "w") as text_file:
                 # utt2spk
                 with open(data_dir / "utt2spk", "w") as utt2spk:
-                    for utt_id, speaker in utt_speaker:
+                    for utt_index, (utt_id, speaker) in enumerate(utt_speaker):
                         utt: DatasetItem = utterances[utt_id]
+
+                        # Clip offset and duration
+                        start_sec: typing.Optional[float] = None
+                        duration_sec: typing.Optional[float] = None
 
                         # wav.scp
                         file_path = utt.path.absolute()
@@ -156,6 +275,78 @@ def write_test_train(
 
                         # utt2spk
                         print(utt_id, speaker, file=utt2spk)
+
+                        # Emit noisy version of audio clip
+                        # Credit: https://github.com/gooofy/zamia-speech/blob/master/speech_gen_noisy.py
+                        if (noise_dir is not None) and (
+                            (utt_index % noise_stride) == 0
+                        ):
+                            _LOGGER.debug("Generating noisy clip for %s", utt_id)
+                            noisy_utt_id = f"{utt_id}_noisy"
+                            fg_duration: typing.Optional[float] = duration_sec
+
+                            if fg_duration is None:
+                                fg_duration = get_duration(file_path)
+
+                            assert fg_duration is not None
+
+                            # Get a random background WAV.
+                            # This will be mixed in behind the entire noisy clip.
+                            bg_path = random.choice(noise_bg_paths)
+                            bg_duration = noise_backgrounds[bg_path]
+
+                            # Get 2 random foreground WAVs.
+                            # These will be placed at the start and end of the clip.
+                            fg_path_1 = random.choice(noise_fg_paths)
+                            fg_label_1, fg_duration_1 = noise_foregrounds[fg_path_1]
+
+                            fg_path_2 = random.choice(noise_fg_paths)
+                            fg_label_2, fg_duration_2 = noise_foregrounds[fg_path_2]
+
+                            # Duration of entire noisy clip
+                            total_noise_sec = (
+                                fg_duration_1 + fg_duration + fg_duration_2
+                            )
+
+                            # Offset into background WAV.
+                            # Used to trim.
+                            bg_offset = random.uniform(
+                                0, max(0, bg_duration - total_noise_sec)
+                            )
+
+                            # Normalization levels of background/foreground
+                            bg_level = random.uniform(-15, -10)
+                            fg_level = random.uniform(-1, 0)
+
+                            # Amount of reverb to add
+                            reverb = random.uniform(0, 50)
+
+                            print(
+                                noisy_utt_id,
+                                str(_ADD_NOISE),
+                                str(file_path),
+                                str(fg_path_1),
+                                str(fg_path_2),
+                                str(bg_path),
+                                str(bg_offset),
+                                str(total_noise_sec),
+                                str(start_sec) if (start_sec is not None) else "''",
+                                str(duration_sec) if (duration_sec is not None) else "''",
+                                str(fg_level),
+                                str(bg_level),
+                                str(reverb),
+                                "|",
+                                file=wav_scp,
+                            )
+
+                            # text with foreground labels on either side (e.g., NSN ...(text)... SIL)
+                            noisy_text = " ".join(
+                                [fg_label_1, utt.text.strip(), fg_label_2]
+                            )
+                            print(noisy_utt_id, noisy_text, file=text_file)
+
+                            # utt2spk
+                            print(noisy_utt_id, speaker, file=utt2spk)
 
 
 # -----------------------------------------------------------------------------

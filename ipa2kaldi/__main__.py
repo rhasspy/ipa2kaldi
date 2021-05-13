@@ -42,6 +42,9 @@ def main():
     if args.arpa_lm:
         args.arpa_lm = Path(args.arpa_lm)
 
+    if args.noise_dir:
+        args.noise_dir = Path(args.noise_dir)
+
     # Create recipe directory
     args.recipe_dir.mkdir(parents=True, exist_ok=True)
 
@@ -111,18 +114,18 @@ def main():
         for item_index, item_details in enumerate(
             dataset_module.get_metadata(dataset_path)
         ):
+            item_speaker, item_text, audio_path = (
+                item_details[0],
+                item_details[1],
+                item_details[2],
+            )
+
             if not audio_path.is_file():
                 missing_files[dataset.name] += 1
                 _LOGGER.warning(
                     "Missing audio file for item %s: %s", item_index, audio_path
                 )
                 continue
-
-            item_speaker, item_text, audio_path = (
-                item_details[0],
-                item_details[1],
-                item_details[2],
-            )
 
             # start/end
             item_start_ms: typing.Optional[int] = None
@@ -267,7 +270,12 @@ def main():
     _LOGGER.debug("Writing Kaldi recipe files")
 
     # Datasets
-    write_test_train(args.recipe_dir, datasets.values())
+    write_test_train(
+        args.recipe_dir,
+        datasets.values(),
+        noise_dir=args.noise_dir,
+        noise_stride=args.noise_stride,
+    )
 
     # Phones
     nonsilence_phones = []
@@ -364,6 +372,16 @@ def get_args():
         "--drop-unknown",
         action="store_true",
         help="Drop utterances with unknown instead of guessing pronunciations",
+    )
+    parser.add_argument(
+        "--noise-dir",
+        help="Path to directory with noise WAV files (_background_, SIL, NSN, etc.)",
+    )
+    parser.add_argument(
+        "--noise-stride",
+        type=int,
+        default=4,
+        help="Add noise to every nth clip (default: 4, only with --noise-dir)",
     )
     parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to console"
